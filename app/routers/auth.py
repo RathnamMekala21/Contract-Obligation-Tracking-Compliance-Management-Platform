@@ -19,7 +19,13 @@ def login(
     db: Session = Depends(get_db)
 ):
     email_clean = login_data.email.strip().lower()
-    user = db.query(User).filter(User.email.ilike(email_clean)).first()
+    user = None
+    if db is not None:
+        try:
+            user = db.query(User).filter(User.email.ilike(email_clean)).first()
+        except Exception as e:
+            print(f"Database query error in login (fallback mode): {e}")
+            user = None
 
     if not user:
         # Fallback helper for testing/demo: email pattern determines test role

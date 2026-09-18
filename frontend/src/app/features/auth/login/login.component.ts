@@ -10,6 +10,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AuthService } from '../../../core/services/auth.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-login',
@@ -244,7 +245,7 @@ export class LoginComponent implements OnInit {
       error: (err) => {
         this.isLoading = false;
         if (err.status === 0) {
-          this.errorMessage = 'Cannot connect to backend API server at http://127.0.0.1:8000. Please start the FastAPI backend server using: uvicorn app.main:app --reload --port 8000';
+          this.errorMessage = `Cannot connect to backend API server at ${environment.apiUrl}. The server may be waking up (~30s cold start). Please wait a few seconds and try signing in again.`;
         } else {
           this.errorMessage = err.error?.detail || 'Invalid email or password. Please try again.';
         }

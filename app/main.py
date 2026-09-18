@@ -31,6 +31,9 @@ app.include_router(reports.router)
 @app.on_event("startup")
 def startup_event():
     try:
+        import app.models  # Register all SQLAlchemy models
+        from app.database.database import engine, Base
+        Base.metadata.create_all(bind=engine)
         test_database_connection()
     except Exception as e:
         print("Database startup test exception (handled):", e)

@@ -70,7 +70,7 @@ import Chart from 'chart.js/auto';
         <mat-icon color="warn">error</mat-icon>
         <div>
           <h3>Failed to load dashboard statistics</h3>
-          <p>Please verify backend connection to http://127.0.0.1:8000 and try again.</p>
+          <p>Please verify backend connection and try again.</p>
         </div>
         <button mat-raised-button color="warn" (click)="loadDashboardData()">Retry</button>
       </div>
