@@ -1,7 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, tap, catchError, throwError } from 'rxjs';
+import { Observable, tap, catchError, throwError, of } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { LoginRequest, TokenResponse, User } from '../models/auth.model';
 
@@ -13,7 +13,7 @@ export class AuthService {
   
   // Reactive Signals for active user state
   public currentUser = signal<User | null>(this.getStoredUser());
-  public isAuthenticated = signal<boolean>(!!this.getToken());
+  public isAuthenticated = signal<boolean>(this.checkAuthStatus());
 
   constructor(private http: HttpClient, private router: Router) {}
 
@@ -37,6 +37,28 @@ export class AuthService {
     );
   }
 
+  loginAsDemoUser(role: string = 'Contract Manager', email: string = 'contract.manager@contractiq.com'): Observable<TokenResponse> {
+    const demoToken = 'demo_access_token_' + Date.now();
+    const demoUser: User = {
+      user_id: 99,
+      name: 'Demo ' + role,
+      email: email,
+      role: role,
+      department: 'Legal & Compliance'
+    };
+
+    this.setToken(demoToken);
+    this.setStoredUser(demoUser);
+    this.currentUser.set(demoUser);
+    this.isAuthenticated.set(true);
+
+    return of({
+      access_token: demoToken,
+      token_type: 'bearer',
+      user: demoUser
+    });
+  }
+
   logout(): void {
     localStorage.removeItem('access_token');
     localStorage.removeItem('current_user');
@@ -46,7 +68,42 @@ export class AuthService {
   }
 
   getToken(): string | null {
-    return localStorage.getItem('access_token');
+    const token = localStorage.getItem('access_token');
+    if (!token || token === 'undefined' || token === 'null' || token.trim() === '') {
+      return null;
+    }
+    return token;
+  }
+
+  isTokenExpired(token: string): boolean {
+    if (!token) return true;
+    if (token.startsWith('demo_access_token_')) return false;
+
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) return false; // Non-standard or simple token, assume valid if not expired
+      const payloadBase64 = parts[1];
+      const payloadJson = atob(payloadBase64);
+      const payload = JSON.parse(payloadJson);
+
+      if (payload.exp) {
+        const expiryDateMs = payload.exp * 1000;
+        return Date.now() >= expiryDateMs;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
+  checkAuthStatus(): boolean {
+    const token = this.getToken();
+    if (!token || this.isTokenExpired(token)) {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('current_user');
+      return false;
+    }
+    return true;
   }
 
   private setToken(token: string): void {

@@ -59,20 +59,44 @@ import Chart from 'chart.js/auto';
         </div>
       </div>
 
+      <!-- Demo Mode Banner -->
+      <div *ngIf="isDemoMode && !isLoading" class="demo-banner">
+        <div class="demo-banner-content">
+          <mat-icon class="text-amber-600">info</mat-icon>
+          <span><strong>Offline / Demo Mode Active:</strong> Showing interactive sample dashboard statistics. Live FastAPI backend is sleeping or connecting.</span>
+        </div>
+        <button mat-stroked-button color="primary" (click)="loadDashboardData()">
+          <mat-icon>sync</mat-icon>
+          <span>Connect Live Backend</span>
+        </button>
+      </div>
+
       <!-- Loading State -->
       <div *ngIf="isLoading" class="loading-state">
         <mat-spinner diameter="48"></mat-spinner>
-        <p>Fetching real-time dashboard analytics from FastAPI backend...</p>
+        <p>Fetching dashboard analytics from ContractIQ backend API...</p>
       </div>
 
       <!-- Error State -->
       <div *ngIf="hasError && !isLoading" class="error-card">
-        <mat-icon color="warn">error</mat-icon>
-        <div>
-          <h3>Failed to load dashboard statistics</h3>
-          <p>Please verify backend connection and try again.</p>
+        <div class="error-header">
+          <mat-icon color="warn" class="error-icon">error_outline</mat-icon>
+          <div>
+            <h3>Failed to load live dashboard statistics</h3>
+            <p>The backend API server may be waking up from sleep mode (~30s cold start) or is currently unreachable.</p>
+          </div>
         </div>
-        <button mat-raised-button color="warn" (click)="loadDashboardData()">Retry</button>
+        <div class="error-actions">
+          <button mat-raised-button color="primary" (click)="loadDashboardData()">
+            <mat-icon>refresh</mat-icon> Retry Backend Connection
+          </button>
+          <button mat-raised-button color="accent" (click)="loadDemoData()">
+            <mat-icon>analytics</mat-icon> Load Demo Statistics
+          </button>
+          <button mat-stroked-button (click)="goToLogin()">
+            <mat-icon>login</mat-icon> Go to Login Page
+          </button>
+        </div>
       </div>
 
       <!-- Main Analytics Content -->
@@ -197,7 +221,7 @@ import Chart from 'chart.js/auto';
             <div class="kpi-body">
               <div>
                 <span class="kpi-label">Avg Compliance Score</span>
-                <span class="kpi-value text-teal-700">{{ complianceAnalytics?.average_compliance_score || 100 }}%</span>
+                <span class="kpi-value text-teal-700">{{ complianceAnalytics?.average_compliance_score || 92.5 }}%</span>
               </div>
               <div class="kpi-icon-wrapper bg-teal-100 text-teal-700">
                 <mat-icon>gavel</mat-icon>
@@ -387,6 +411,23 @@ import Chart from 'chart.js/auto';
       display: flex;
       gap: 12px;
     }
+    .demo-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      background-color: #fef3c7;
+      border: 1px solid #fde68a;
+      border-radius: 12px;
+      color: #92400e;
+      font-size: 0.875rem;
+      gap: 12px;
+    }
+    .demo-banner-content {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
     .loading-state {
       display: flex;
       flex-direction: column;
@@ -398,13 +439,39 @@ import Chart from 'chart.js/auto';
     }
     .error-card {
       display: flex;
-      align-items: center;
+      flex-direction: column;
       gap: 16px;
       padding: 24px;
       background-color: #fef2f2;
       border: 1px solid #fca5a5;
       border-radius: 12px;
       color: #991b1b;
+    }
+    .error-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+
+      h3 {
+        margin: 0;
+        font-size: 1.125rem;
+        font-weight: 700;
+      }
+      p {
+        margin: 4px 0 0 0;
+        font-size: 0.875rem;
+        color: #7f1d1d;
+      }
+    }
+    .error-icon {
+      font-size: 32px;
+      width: 32px;
+      height: 32px;
+    }
+    .error-actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
     }
     .kpi-grid {
       display: grid;
@@ -520,6 +587,38 @@ import Chart from 'chart.js/auto';
     .w-full {
       width: 100%;
     }
+    .badge-high-risk {
+      background-color: #fee2e2;
+      color: #991b1b;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .badge-medium-risk {
+      background-color: #fef3c7;
+      color: #92400e;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .badge-low-risk {
+      background-color: #d1fae5;
+      color: #065f46;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .badge-review {
+      background-color: #e0f2fe;
+      color: #075985;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
   `]
 })
 export class DashboardComponent implements OnInit, AfterViewInit {
@@ -538,6 +637,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
 
   isLoading = true;
   hasError = false;
+  isDemoMode = false;
 
   riskColumns: string[] = ['contract_number', 'title', 'risk_level', 'overdue_obligations', 'compliance_score'];
   renewalColumns: string[] = ['contract_number', 'title', 'expiry_date', 'days_remaining'];
@@ -566,33 +666,55 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       next: (data) => {
         this.summary = data;
         this.isLoading = false;
-        this.loadDetailedAnalytics();
+        this.isDemoMode = false;
+        setTimeout(() => this.loadDetailedAnalytics(), 200);
       },
       error: (err) => {
-        this.isLoading = false;
-        if (err.status === 401) {
+        if (err.status === 401 || err.status === 403) {
           this.authService.logout();
           return;
         }
-        this.hasError = true;
-        this.notificationService.showError('Error connecting to FastAPI backend summary API.');
+        // Automatically fall back to Demo Mode so dashboard NEVER shows a broken error screen
+        this.loadDemoData();
       }
     });
   }
 
+  loadDemoData(): void {
+    this.isLoading = true;
+    this.hasError = false;
+    this.isDemoMode = true;
+
+    this.dashboardService.getMockDashboardSummary().subscribe({
+      next: (data) => {
+        this.summary = data;
+        this.isLoading = false;
+        setTimeout(() => this.loadMockDetailedAnalytics(), 200);
+      }
+    });
+  }
+
+  goToLogin(): void {
+    this.authService.logout();
+  }
+
   private loadDetailedAnalytics(): void {
+    this.clearCharts();
+
     this.dashboardService.getContractSummary().subscribe({
       next: (res) => {
         this.contractAnalytics = res;
-        this.renderCategoryChart();
-        this.renderContractStatusChart();
+        setTimeout(() => {
+          this.renderCategoryChart();
+          this.renderContractStatusChart();
+        }, 150);
       }
     });
 
     this.dashboardService.getObligationSummary().subscribe({
       next: (res) => {
         this.obligationAnalytics = res;
-        this.renderObligationChart();
+        setTimeout(() => this.renderObligationChart(), 150);
       }
     });
 
@@ -606,7 +728,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     this.dashboardService.getComplianceSummary().subscribe({
       next: (res) => {
         this.complianceAnalytics = res;
-        this.renderComplianceChart();
+        setTimeout(() => this.renderComplianceChart(), 150);
       }
     });
 
@@ -615,6 +737,54 @@ export class DashboardComponent implements OnInit, AfterViewInit {
         this.riskContracts = res || [];
       }
     });
+  }
+
+  private loadMockDetailedAnalytics(): void {
+    this.clearCharts();
+
+    this.dashboardService.getMockContractSummary().subscribe({
+      next: (res) => {
+        this.contractAnalytics = res;
+        setTimeout(() => {
+          this.renderCategoryChart();
+          this.renderContractStatusChart();
+        }, 150);
+      }
+    });
+
+    this.dashboardService.getMockObligationSummary().subscribe({
+      next: (res) => {
+        this.obligationAnalytics = res;
+        setTimeout(() => this.renderObligationChart(), 150);
+      }
+    });
+
+    this.dashboardService.getMockRenewalSummary().subscribe({
+      next: (res) => {
+        this.renewalAnalytics = res;
+        this.approachingRenewals = res.contracts_approaching_expiry || [];
+      }
+    });
+
+    this.dashboardService.getMockComplianceSummary().subscribe({
+      next: (res) => {
+        this.complianceAnalytics = res;
+        setTimeout(() => this.renderComplianceChart(), 150);
+      }
+    });
+
+    this.dashboardService.getMockRiskContracts().subscribe({
+      next: (res) => {
+        this.riskContracts = res || [];
+      }
+    });
+  }
+
+  private clearCharts(): void {
+    this.charts.forEach(c => {
+      try { c.destroy(); } catch {}
+    });
+    this.charts = [];
   }
 
   private renderContractStatusChart(): void {
@@ -699,11 +869,23 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   }
 
   private createChart(ctx: CanvasRenderingContext2D, config: any): void {
-    const chart = new Chart(ctx, config);
-    this.charts.push(chart);
+    const existing = Chart.getChart(ctx.canvas);
+    if (existing) {
+      try { existing.destroy(); } catch {}
+    }
+    try {
+      const chart = new Chart(ctx, config);
+      this.charts.push(chart);
+    } catch (e) {
+      console.warn('Notice on chart creation:', e);
+    }
   }
 
   exportPdf(type: 'contracts' | 'obligations' | 'renewals' | 'compliance'): void {
+    if (this.isDemoMode) {
+      this.notificationService.showInfo('PDF report export is available when connected to live backend server.');
+      return;
+    }
     this.notificationService.showInfo('Generating PDF report from backend...');
     this.dashboardService.downloadPdfReport(type).subscribe({
       next: (blob) => {
@@ -720,6 +902,10 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   }
 
   exportExcel(type: 'contracts' | 'obligations' | 'renewals' | 'compliance'): void {
+    if (this.isDemoMode) {
+      this.notificationService.showInfo('Excel report export is available when connected to live backend server.');
+      return;
+    }
     this.notificationService.showInfo('Generating Excel spreadsheet...');
     this.dashboardService.downloadExcelReport(type).subscribe({
       next: (blob) => {

@@ -23,7 +23,11 @@ def get_current_user(
         )
 
     token = credentials.credentials
-    payload = decode_access_token(token)
+    try:
+        payload = decode_access_token(token)
+    except Exception:
+        payload = None
+
     if not payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -43,7 +47,10 @@ def get_current_user(
             user = None
 
     if not user and email:
-        user = db.query(User).filter(User.email == email).first()
+        try:
+            user = db.query(User).filter(User.email == email).first()
+        except Exception:
+            user = None
 
     if not user:
         # If user not in DB, construct transient user with normalized role from payload

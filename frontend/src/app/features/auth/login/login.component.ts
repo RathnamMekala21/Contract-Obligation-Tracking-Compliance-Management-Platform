@@ -76,6 +76,16 @@ import { environment } from '../../../../environments/environment';
               <mat-spinner diameter="20" *ngIf="isLoading" class="btn-spinner"></mat-spinner>
               <span *ngIf="!isLoading">Sign In</span>
             </button>
+
+            <button
+              mat-stroked-button
+              type="button"
+              class="demo-btn"
+              (click)="onExploreDemo()"
+            >
+              <mat-icon>analytics</mat-icon>
+              <span>Explore in Demo / Offline Mode</span>
+            </button>
           </form>
 
           <div class="demo-credentials">
@@ -180,6 +190,18 @@ import { environment } from '../../../../environments/environment';
       background-color: #0284c7 !important;
       color: #ffffff !important;
     }
+    .demo-btn {
+      height: 44px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      border-radius: 8px;
+      border-color: #cbd5e1;
+      color: #334155;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
     .btn-spinner {
       margin: 0 auto;
     }
@@ -225,7 +247,8 @@ export class LoginComponent implements OnInit {
 
     this.returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/dashboard';
 
-    if (this.authService.isAuthenticated()) {
+    // Verify authentication status safely
+    if (this.authService.checkAuthStatus()) {
       this.router.navigate([this.returnUrl]);
     }
   }
@@ -245,11 +268,20 @@ export class LoginComponent implements OnInit {
       error: (err) => {
         this.isLoading = false;
         if (err.status === 0) {
-          this.errorMessage = `Cannot connect to backend API server at ${environment.apiUrl}. The server may be waking up (~30s cold start). Please wait a few seconds and try signing in again.`;
+          this.errorMessage = `Cannot connect to live backend API server at ${environment.apiUrl}. The server may be waking up (~30s cold start). Click 'Explore in Demo Mode' below to view dashboard statistics immediately.`;
         } else {
           this.errorMessage = err.error?.detail || 'Invalid email or password. Please try again.';
         }
         this.notificationService.showError(this.errorMessage);
+      }
+    });
+  }
+
+  onExploreDemo(): void {
+    this.authService.loginAsDemoUser('Contract Manager', 'contract.manager@contractiq.com').subscribe({
+      next: () => {
+        this.notificationService.showSuccess('Entered Demo Mode as Contract Manager.');
+        this.router.navigateByUrl('/dashboard');
       }
     });
   }

@@ -9,6 +9,10 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   let authReq = req;
   if (token) {
+    if (authService.isTokenExpired(token)) {
+      authService.logout();
+      return throwError(() => new HttpErrorResponse({ status: 401, statusText: 'Token Expired' }));
+    }
     authReq = req.clone({
       setHeaders: {
         Authorization: `Bearer ${token}`
@@ -18,7 +22,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(authReq).pipe(
     catchError((error: HttpErrorResponse) => {
-      if (error.status === 401) {
+      if (error.status === 401 || error.status === 403) {
         authService.logout();
       }
       return throwError(() => error);

@@ -33,8 +33,10 @@ def startup_event():
     try:
         import app.models  # Register all SQLAlchemy models
         from app.database.database import engine, Base
+        from app.seed import seed_database
         Base.metadata.create_all(bind=engine)
         test_database_connection()
+        seed_database()
     except Exception as e:
         print("Database startup test exception (handled):", e)
 
